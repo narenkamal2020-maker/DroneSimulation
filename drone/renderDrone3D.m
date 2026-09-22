@@ -29,23 +29,23 @@ bladeRadius = 0.16;
 % Body dimensions: 0.20m x 0.14m x 0.06m
 bx = 0.11; by = 0.08; bz = 0.035;
 [Xb, Yb, Zb] = ellipsoid(0, 0, 0, bx, by, bz, 16);
-hBody = surf(droneRoot, Xb, Yb, Zb, ...
-             'FaceColor', [0.12, 0.15, 0.20], ... % Dark stealth carbon
-             'EdgeColor', [0.25, 0.35, 0.45], ...
-             'FaceAlpha', 0.98);
+hBody = surface(Xb, Yb, Zb, 'Parent', droneRoot, ...
+                'FaceColor', [0.12, 0.15, 0.20], ... % Dark stealth carbon
+                'EdgeColor', [0.25, 0.35, 0.45], ...
+                'FaceAlpha', 0.98);
 
 % 3. Sensor Dome / LiDAR Turret on top
 [Xs, Ys, Zs] = sphere(12);
-hTurret = surf(droneRoot, Xs*0.035, Ys*0.035, Zs*0.025 + bz, ...
-               'FaceColor', [0.0, 0.8, 1.0], ... % Glowing cyan sensor glass
-               'EdgeColor', 'none', ...
-               'FaceAlpha', 0.90);
+hTurret = surface(Xs*0.035, Ys*0.035, Zs*0.025 + bz, 'Parent', droneRoot, ...
+                  'FaceColor', [0.0, 0.8, 1.0], ... % Glowing cyan sensor glass
+                  'EdgeColor', 'none', ...
+                  'FaceAlpha', 0.90);
 
 % 4. Forward Cockpit / Directional Chevron Indicator
 chevX = [bx, bx + 0.07, bx];
 chevY = [-0.035, 0, 0.035];
 chevZ = [0.005, 0.005, 0.005];
-hChevron = patch(droneRoot, 'XData', chevX, 'YData', chevY, 'ZData', chevZ, ...
+hChevron = patch('Parent', droneRoot, 'XData', chevX, 'YData', chevY, 'ZData', chevZ, ...
                  'FaceColor', [0.0, 0.85, 1.0], 'EdgeColor', 'w', ...
                  'LineWidth', 1.2);
 
@@ -63,7 +63,7 @@ for i = 1:4
     armEnds(i, :) = [ex, ey, 0];
     
     % Carbon tubular arm line
-    hArm = line(droneRoot, [0, ex], [0, ey], [0, 0], ...
+    hArm = line([0, ex], [0, ey], [0, 0], 'Parent', droneRoot, ...
                 'Color', [0.25, 0.28, 0.35], 'LineWidth', 3.5);
     hArms(i) = hArm;
     
@@ -72,9 +72,9 @@ for i = 1:4
     Xm = Xm + ex;
     Ym = Ym + ey;
     Zm = Zm * motorHeight;
-    hMotor = surf(droneRoot, Xm, Ym, Zm, ...
-                  'FaceColor', [0.35, 0.40, 0.48], ... % Anodized metal
-                  'EdgeColor', 'none');
+    hMotor = surface(Xm, Ym, Zm, 'Parent', droneRoot, ...
+                     'FaceColor', [0.35, 0.40, 0.48], ... % Anodized metal
+                     'EdgeColor', 'none');
     hMotors(i) = hMotor;
     
     % Propeller Transform Group (child of droneRoot, centered at motor hub)
@@ -91,25 +91,26 @@ for i = 1:4
         bladeCol = [1.0, 0.55, 0.1];
     end
     
-    patch(propTrans, 'XData', [-bladeRadius, -bladeRadius*0.2, 0, bladeRadius*0.2, bladeRadius, bladeRadius*0.2, 0, -bladeRadius*0.2], ...
-                     'YData', [0, -0.018, 0, 0.018, 0, -0.018, 0, 0.018], ...
-                     'ZData', zeros(1, 8), ...
-                     'FaceColor', bladeCol, 'EdgeColor', [0.2 0.2 0.2], ...
-                     'FaceAlpha', 0.85, 'LineWidth', 0.5);
+    patch('Parent', propTrans, ...
+          'XData', [-bladeRadius, -bladeRadius*0.2, 0, bladeRadius*0.2, bladeRadius, bladeRadius*0.2, 0, -bladeRadius*0.2], ...
+          'YData', [0, -0.018, 0, 0.018, 0, -0.018, 0, 0.018], ...
+          'ZData', zeros(1, 8), ...
+          'FaceColor', bladeCol, 'EdgeColor', [0.2 0.2 0.2], ...
+          'FaceAlpha', 0.85, 'LineWidth', 0.5);
     
     % Center hub spinner
     [Xh, Yh, Zh] = cylinder(0.012, 8);
     Zh = Zh * 0.015;
-    surf(propTrans, Xh, Yh, Zh, 'FaceColor', [0.9 0.9 0.9], 'EdgeColor', 'none');
+    surface(Xh, Yh, Zh, 'Parent', propTrans, 'FaceColor', [0.9 0.9 0.9], 'EdgeColor', 'none');
 end
 
 % 6. Navigation LED Beacons
-% Front Right (Starboard) - Green
-scatter3(droneRoot, armEnds(1, 1), armEnds(1, 2), -0.01, 40, [0.0 1.0 0.3], 'filled');
-% Front Left (Port) - Red
-scatter3(droneRoot, armEnds(4, 1), armEnds(4, 2), -0.01, 40, [1.0 0.1 0.1], 'filled');
-% Rear Strobe - White
-scatter3(droneRoot, -bx, 0, -0.01, 35, [1.0 1.0 1.0], 'filled');
+plot3(armEnds(1, 1), armEnds(1, 2), -0.01, 'o', 'Parent', droneRoot, ...
+      'MarkerFaceColor', [0.0 1.0 0.3], 'MarkerEdgeColor', 'none', 'MarkerSize', 7);
+plot3(armEnds(4, 1), armEnds(4, 2), -0.01, 'o', 'Parent', droneRoot, ...
+      'MarkerFaceColor', [1.0 0.1 0.1], 'MarkerEdgeColor', 'none', 'MarkerSize', 7);
+plot3(-bx, 0, -0.01, 'o', 'Parent', droneRoot, ...
+      'MarkerFaceColor', [1.0 1.0 1.0], 'MarkerEdgeColor', 'none', 'MarkerSize', 6);
 
 % Package return struct
 droneGraphics.droneRoot = droneRoot;
