@@ -86,6 +86,7 @@ drawnow;
 
 %% 5. Autonomous Route Planning (Initial Global Trajectory)
 dashboard.updateStatus('INITIALIZING', 'SYSTEMS ONLINE - INITIALIZING SENSORS', 'nominal');
+dashboard.addLogEntry(0.0, 'SYSTEMS ONLINE & SENSORS CALIBRATED', 'info');
 pause(0.5);
 
 dashboard.updateStatus('SENSOR CHECK', 'GPS, IMU, LIDAR, ALTIMETER CALIBRATED', 'nominal');
@@ -101,8 +102,23 @@ goalCruise  = scenario.goalPos;
 
 [rawRoute, planSuccess, planMetrics] = planner.planRoute(startCruise, goalCruise, occMap);
 if ~planSuccess
-    warning('Initial route planning encountered difficulty; using direct waypoints.');
+    % Fallback: retry with adjusted altitude levels within map bounds
+    altRetries = [cruiseAltitude + 2.5, cruiseAltitude + 5.0, cruiseAltitude - 2.0];
+    for alt = altRetries
+        if alt >= 4.0 && alt <= cfg.map.boundsZ(2) - 2.0
+            [rawRoute, planSuccess, planMetrics] = planner.planRoute([startCruise(1:2), alt], [goalCruise(1:2), alt], occMap);
+            if planSuccess
+                cruiseAltitude = alt;
+                break;
+            end
+        end
+    end
 end
+
+if ~planSuccess
+    error('Autonomous route planning failed: No collision-free flight path found.');
+end
+
 simplifiedWaypoints = PathSimplifier.simplify(rawRoute, occMap);
 
 % Insert Takeoff vertical ascent at start
@@ -120,6 +136,7 @@ visualizer.setPlannedPath(pathSample);
 metrics.plannedPathLength = planMetrics.pathLength;
 
 dashboard.updateStatus('ROUTE GENERATED', 'SAFE FLIGHT CORRIDOR VERIFIED', 'success');
+dashboard.addLogEntry(0.0, sprintf('SAFE FLIGHT ROUTE VERIFIED (%.1f m)', planMetrics.pathLength), 'success');
 pause(0.6);
 
 %% 6. Pre-Flight Arming & Takeoff
@@ -134,10 +151,12 @@ for k = 1:15
 end
 
 dashboard.updateStatus('TAKEOFF', 'VERTICAL CLIMB TO CRUISE ALTITUDE', 'nominal');
+dashboard.addLogEntry(0.0, 'TAKEOFF INITIATED - CLIMBING TO CRUISE ALTITUDE', 'info');
 
 %% 7. Main Real-Time Simulation Loop
 dt = cfg.sim.dt;
 simTime = 0.0;
+trajectoryStartTime = 0.0;
 missionState = 'NAVIGATING';
 replanCooldown = 0.0;
 replanCount = 0;
@@ -179,13 +198,14 @@ while simTime < cfg.sim.maxTime && ishandle(hMainFig)
     % --- MISSION STATE MACHINE ---
     switch missionState
         case 'NAVIGATING'
-            [pos_d, vel_d, accel_d, yaw_d] = trajGen.evaluate(simTime);
+            trajTime = simTime - trajectoryStartTime;
+            [pos_d, vel_d, accel_d, yaw_d] = trajGen.evaluate(trajTime);
             
             % Obstacle detection check along forward corridor
             if minLidarDist < cfg.planner.replanDistance && replanCooldown <= 0
                 % Check if detected obstacle lies dangerously close to planned forward path
                 isCorridorBlocked = false;
-                for futureT = linspace(simTime + 0.2, min(trajGen.totalDuration, simTime + 4.5), 10)
+                for futureT = linspace(trajTime + 0.2, min(trajGen.totalDuration, trajTime + 4.5), 10)
                     futurePt = trajGen.evaluate(futureT);
                     for obIdx = 1:length(allObstacles)
                         ob = allObstacles(obIdx);
@@ -210,13 +230,15 @@ while simTime < cfg.sim.maxTime && ishandle(hMainFig)
                     missionState = 'OBSTACLE DETECTED';
                     metrics.recordObstacleDetection();
                     dashboard.updateStatus('OBSTACLE DETECTED', '⚠ INTRUSION DETECTED - HOLDING CORRIDOR', 'warning');
+                    dashboard.addLogEntry(simTime, 'DYNAMIC OBSTACLE DETECTED IN FLIGHT CORRIDOR', 'warn');
                 end
             end
             
             % Check if close to destination
-            if simTime >= trajGen.totalDuration || distToGoal < 2.0
+            if trajTime >= trajGen.totalDuration || distToGoal < 2.0
                 missionState = 'GOAL APPROACH';
                 dashboard.updateStatus('GOAL APPROACH', 'APPROACHING DESTINATION HELIPAD', 'nominal');
+                dashboard.addLogEntry(simTime, 'APPROACHING DESTINATION HELIPAD', 'info');
             end
             
         case 'OBSTACLE DETECTED'
@@ -242,8 +264,8 @@ while simTime < cfg.sim.maxTime && ishandle(hMainFig)
                 trajGen = TrajectoryGenerator(cfg);
                 trajGen.generate(newSimplified, 3.6, drone.vel');
                 
-                % Reset trajectory clock to 0 for the new route
-                simTime = 0.0;
+                % Reset trajectory clock offset for the new route without altering global simTime
+                trajectoryStartTime = simTime;
                 
                 % Update visualization with detour route
                 newSample = trajGen.samplePoints(150);
@@ -254,6 +276,7 @@ while simTime < cfg.sim.maxTime && ishandle(hMainFig)
                 replanCooldown = 8.0; % Prevent flapping
                 
                 dashboard.updateStatus('AVOIDING', '✓ SAFE ROUTE GENERATED - RESUMING NAVIGATION', 'success');
+                dashboard.addLogEntry(simTime, sprintf('SAFE DETOUR #%d ENGAGED AROUND OBSTACLE', replanCount), 'replan');
                 missionState = 'NAVIGATING';
             else
                 dashboard.updateStatus('HOVER', 'WAITING FOR SAFE PASSAGE...', 'warning');
@@ -270,6 +293,7 @@ while simTime < cfg.sim.maxTime && ishandle(hMainFig)
             if norm(drone.pos - targetHover) < 0.6 && norm(drone.vel) < 0.4
                 missionState = 'LANDING';
                 dashboard.updateStatus('LANDING', 'COMMENCING CONTROLLED DESCENT', 'nominal');
+                dashboard.addLogEntry(simTime, 'COMMENCING VERTICAL DESCENT TO HELIPAD', 'info');
                 landingStartTime = simTime;
                 landingStartAlt = drone.pos(3);
             end
@@ -291,6 +315,7 @@ while simTime < cfg.sim.maxTime && ishandle(hMainFig)
                 drone.armed = false;
                 missionState = 'MISSION COMPLETE';
                 dashboard.updateStatus('MISSION COMPLETE', '✓ TOUCHDOWN CONFIRMED - MISSION SUCCESSFUL', 'success');
+                dashboard.addLogEntry(simTime, 'TOUCHDOWN CONFIRMED - MISSION SUCCESSFUL', 'success');
             end
             
         case 'MISSION COMPLETE'
@@ -317,6 +342,7 @@ while simTime < cfg.sim.maxTime && ishandle(hMainFig)
     % Update Dashboard HUD Readouts
     telemetryData.altitude = measAlt;
     telemetryData.speed = norm(drone.vel);
+    telemetryData.heading = mod(rad2deg(drone.euler(3)), 360);
     telemetryData.distGoal = distToGoal;
     telemetryData.time = simTime;
     telemetryData.numObstacles = length(hitObsIndices);
@@ -362,6 +388,10 @@ fprintf('  Obstacle Detections:      %d\n', summary.obstacleDetections);
 fprintf('  Dynamic Route Replans:    %d\n', summary.routeReplans);
 fprintf('  Collisions:               %d [FLAWLESS FLIGHT]\n', summary.collisions);
 fprintf('=======================================================\n\n');
+
+% Show debrief card on dashboard
+dashboard.showMissionComplete(summary);
+drawnow;
 
 % Render 8-panel analytical figure
 plotMissionResults(metrics, env, cfg);

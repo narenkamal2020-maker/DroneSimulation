@@ -171,8 +171,8 @@ classdef LidarSensor < handle
         function renderInit(obj, ax)
             % Initializes graphic handles for rays and hit points
             hold(ax, 'on');
-            % Rays: thin transparent lines
-            obj.hRays = plot3(ax, nan, nan, nan, 'Color', [obj.cfg.theme.lidarRays, 0.25], ...
+            % Rays: thin dimmed lines
+            obj.hRays = plot3(ax, nan, nan, nan, 'Color', obj.cfg.theme.lidarRays * 0.45, ...
                               'LineWidth', 0.6);
             % Hit points: glowing markers
             obj.hHits = scatter3(ax, nan, nan, nan, 24, obj.cfg.theme.lidarHits, ...

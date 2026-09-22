@@ -67,13 +67,14 @@ classdef DroneModel < handle
             dPhi = (phi_c - obj.euler(1)) / obj.tauAttitude;
             dTheta = (theta_c - obj.euler(2)) / obj.tauAttitude;
             
-            % Yaw error with wraparound [-pi, pi]
-            yawErr = angdiff(obj.euler(3), psi_c);
+            % Yaw error with wraparound [-pi, pi] (base MATLAB equivalent to angdiff)
+            yawErr = mod(psi_c - obj.euler(3) + pi, 2*pi) - pi;
             dPsi = max(-obj.cfg.drone.maxYawRate, min(obj.cfg.drone.maxYawRate, yawErr / obj.tauAttitude));
             
             obj.euler(1) = obj.euler(1) + dPhi * dt;
             obj.euler(2) = obj.euler(2) + dTheta * dt;
-            obj.euler(3) = wrapToPi(obj.euler(3) + dPsi * dt);
+            newPsi = obj.euler(3) + dPsi * dt;
+            obj.euler(3) = mod(newPsi + pi, 2*pi) - pi;
             
             % Clamp thrust
             m = obj.cfg.drone.mass;
@@ -128,7 +129,7 @@ classdef DroneModel < handle
             obj.propAngles(2) = obj.propAngles(2) - spinRate * dt;
             obj.propAngles(3) = obj.propAngles(3) + spinRate * dt;
             obj.propAngles(4) = obj.propAngles(4) - spinRate * dt;
-            obj.propAngles = wrapTo2Pi(obj.propAngles);
+            obj.propAngles = mod(obj.propAngles, 2*pi);
         end
         
         function R = getRotationMatrix(obj)

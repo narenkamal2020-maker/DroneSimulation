@@ -37,8 +37,9 @@ for i = 1:length(xGrid)
         alpha = 0.55;
         lw = 1.2;
     end
+    lineCol = cfg.theme.groundColor * (1 - alpha) + cfg.theme.gridColor * alpha;
     line(ax, [xg, xg], [by(1), by(2)], [0.01, 0.01], ...
-         'Color', [cfg.theme.gridColor, alpha], 'LineWidth', lw);
+         'Color', lineCol, 'LineWidth', lw);
 end
 
 % Lines parallel to X
@@ -50,8 +51,9 @@ for i = 1:length(yGrid)
         alpha = 0.55;
         lw = 1.2;
     end
+    lineCol = cfg.theme.groundColor * (1 - alpha) + cfg.theme.gridColor * alpha;
     line(ax, [bx(1), bx(2)], [yg, yg], [0.01, 0.01], ...
-         'Color', [cfg.theme.gridColor, alpha], 'LineWidth', lw);
+         'Color', lineCol, 'LineWidth', lw);
 end
 
 % 3. Arena boundary perimeter frame
@@ -109,5 +111,5 @@ padHandles.h3 = plot3(ax, [x0 - hSize/2, x0 + hSize/2], [y0, y0], [0.04, 0.04], 
 % Pulsing beacon / label
 text(ax, x0, y0, 0.8, labelText, 'Color', color, 'FontSize', 9, ...
      'FontWeight', 'bold', 'HorizontalAlignment', 'center', ...
-     'BackgroundColor', [0.05, 0.07, 0.10, 0.75], 'Margin', 2);
+     'BackgroundColor', [0.05, 0.07, 0.10], 'Margin', 2);
 end

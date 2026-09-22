@@ -129,20 +129,21 @@ if numFloors < 2
 end
 
 zLevels = (z0 + floorHeight):floorHeight:(z0 + dz - 1.0);
+bandColor = glowColor * 0.7;
 for i = 1:length(zLevels)
     zl = zLevels(i);
     % Front facade band
     hl1 = line(ax, [x0 + 0.5, x0 + dx - 0.5], [y0 - 0.02, y0 - 0.02], [zl, zl], ...
-               'Color', [glowColor, 0.45], 'LineWidth', 1.2);
+               'Color', bandColor, 'LineWidth', 1.2);
     % Right facade band
     hl2 = line(ax, [x0 + dx + 0.02, x0 + dx + 0.02], [y0 + 0.5, y0 + dy - 0.5], [zl, zl], ...
-               'Color', [glowColor, 0.45], 'LineWidth', 1.2);
+               'Color', bandColor, 'LineWidth', 1.2);
     % Back facade band
     hl3 = line(ax, [x0 + 0.5, x0 + dx - 0.5], [y0 + dy + 0.02, y0 + dy + 0.02], [zl, zl], ...
-               'Color', [glowColor, 0.45], 'LineWidth', 1.2);
+               'Color', bandColor, 'LineWidth', 1.2);
     % Left facade band
     hl4 = line(ax, [x0 - 0.02, x0 - 0.02], [y0 + 0.5, y0 + dy - 0.5], [zl, zl], ...
-               'Color', [glowColor, 0.45], 'LineWidth', 1.2);
+               'Color', bandColor, 'LineWidth', 1.2);
     hLines = [hLines; hl1; hl2; hl3; hl4]; %#ok<AGROW>
 end
 end
